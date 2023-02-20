@@ -10,7 +10,7 @@ import subprocess
 from typing import List, Dict
 
 
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 
 use_output_colour = True
 
@@ -67,7 +67,7 @@ class RepoUpdater:
         # print("Waiting for subprocess...")
         self.pull_command.wait()
         self.pull_return_code = self.pull_command.returncode
-        # print("Subprocess complete, return code = {}".format(self.pull_return_code))
+        print("Subprocess complete for relative path {}, return code = {}".format(self.relative_path, self.pull_return_code))
         
         
 
@@ -136,7 +136,7 @@ class RepoSearcher:
         if total_thread_cound == 0:
             set_col(TermCols.WARNING)
             print("No git repos found!")
-        elif len(failed_threads) is 0:
+        elif len(failed_threads) == 0:
             set_col(TermCols.OKGREEN)
             print("All git repos updated successfully!")
         elif len(failed_threads) == total_thread_cound:
