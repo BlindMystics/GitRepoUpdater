@@ -10,7 +10,7 @@ import subprocess
 from typing import List, Dict
 
 
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 
 use_output_colour = True
 
@@ -51,6 +51,12 @@ class RepoUpdater:
         self.repo_updater_thread = threading.Thread(target=self.thread_handle)
         self.repo_updater_thread.start()
         self.pull_return_code = -1
+        self.submodule_update_return_code = -1
+
+    def get_final_return_code(self):
+        if self.pull_return_code != 0:
+            return self.pull_return_code
+        return self.submodule_update_return_code
 
 
     def thread_handle(self):
@@ -58,16 +64,20 @@ class RepoUpdater:
         print("Updating git repo: {}".format(self.relative_path))
         clear_col()
 
-        pull_command_string: str = "cd {}; git pull; git submodule update --init".format(self.absolute_path)
+        # First try and pull.
+        pull_command_string: str = "cd {}; git pull".format(self.absolute_path)
         self.pull_command = subprocess.Popen(pull_command_string, shell=True)
-
-        self.pull_command.wait()
-            
-        clear_col()
-        # print("Waiting for subprocess...")
         self.pull_command.wait()
         self.pull_return_code = self.pull_command.returncode
-        print("Subprocess complete for relative path {}, return code = {}".format(self.relative_path, self.pull_return_code))
+
+        if self.pull_return_code == 0:
+            # Then try and update all submodules.
+            submodule_update_command_string: str = "cd {}; git submodule update --init".format(self.absolute_path)
+            self.submodule_update_command = subprocess.Popen(submodule_update_command_string, shell=True)
+            self.submodule_update_command.wait()
+            self.submodule_update_return_code = self.submodule_update_command.returncode
+        
+        print("Subprocesses complete for relative path {}, return code = {}".format(self.relative_path, self.get_final_return_code()))
         
         
 
@@ -124,7 +134,7 @@ class RepoSearcher:
         # Wait for all threads to finish.
         for repo_updater in self.repo_updaters:
             repo_updater.repo_updater_thread.join()
-            if repo_updater.pull_return_code == 0:
+            if repo_updater.get_final_return_code() == 0:
                 successful_threads.append(repo_updater)
             else:
                 failed_threads.append(repo_updater)
